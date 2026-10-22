@@ -85,6 +85,16 @@ describe('Scopebook billing', () => {
     expect((await request(app).get('/api/billing/status').set('Cookie', license)).body.pro).toBe(true);
   });
 
+  it('localizes hosted Stripe checkout and the inline product description from the requested language without changing the price', async () => {
+    const { app, gateway } = setup();
+    await request(app).post('/api/billing/checkout').set('Origin', config.appUrl).set('Accept-Language', 'ru-RU,ru;q=0.9,en;q=0.8').send({});
+    const parameters = gateway.createCheckout.mock.calls[0][0];
+    expect(parameters.locale).toBe('ru');
+    expect(parameters.line_items?.[0].price_data?.unit_amount).toBe(2900);
+    expect(parameters.line_items?.[0].price_data?.currency).toBe('usd');
+    expect(parameters.line_items?.[0].price_data?.product_data?.description).toContain('Разовая лицензия Pro');
+  });
+
   it('refuses unpaid or mismatched purchases', async () => {
     const { app, gateway, store } = setup();
     const checkout = await request(app).post('/api/billing/checkout').set('Origin', config.appUrl).send({});

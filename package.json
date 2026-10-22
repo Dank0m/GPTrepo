@@ -10,6 +10,7 @@
     "start": "node dist-server/index.js",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "samples": "tsx scripts/generate-samples.ts",
     "check": "npm run build && npm test && npm run test:e2e"
   },
   "dependencies": {

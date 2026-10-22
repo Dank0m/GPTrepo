@@ -154,6 +154,7 @@ export function createApp(options: AppOptions = {}) {
       return;
     }
     if (validLicense(req)) { res.status(409).json({ error: 'Pro is already active in this browser.' }); return; }
+    const language = req.get('Accept-Language') && req.acceptsLanguages('ru', 'en') === 'ru' ? 'ru' : 'en';
     let state = cookie(req, CHECKOUT_COOKIE);
     if (!state || !STATE_PATTERN.test(state)) state = randomBytes(32).toString('base64url');
     let lineItem: Stripe.Checkout.SessionCreateParams.LineItem;
@@ -166,12 +167,13 @@ export function createApp(options: AppOptions = {}) {
       lineItem = { price: config.stripePriceId, quantity: 1 };
     } else {
       lineItem = {
-        price_data: { currency: 'usd', unit_amount: 2900, product_data: { name: 'Scopebook Pro', description: 'One-time Pro license: up to 500 saved proposals, clean exports, and backups.' } },
+        price_data: { currency: 'usd', unit_amount: 2900, product_data: { name: 'Scopebook Pro', description: language === 'ru' ? 'Разовая лицензия Pro: до 500 предложений, экспорт без водяного знака и резервные копии.' : 'One-time Pro license: up to 500 saved proposals, clean exports, and backups.' } },
         quantity: 1,
       };
     }
     const session = await gateway.createCheckout({
       mode: 'payment',
+      locale: language,
       payment_method_types: ['card'],
       line_items: [lineItem],
       metadata: { product: 'scopebook_pro' },

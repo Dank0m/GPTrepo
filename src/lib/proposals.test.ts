@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateChangeOrder, calculateProposal, createBlankProposal, createProposal,
-  generateProposalHtml, parseBackup, serializeBackup, validateProposal,
+  formatMoney, generateProposalHtml, parseBackup, serializeBackup, validateProposal,
 } from './proposals';
+import { domainErrorRu } from '../locales/domain';
 
 describe('proposal economics', () => {
   it('counts contingency as capacity, keeps tax out of profit, and splits gross payments', () => {
@@ -131,5 +132,64 @@ describe('client proposal export', () => {
     expect(html).not.toContain('capacityCost');
     expect(html).not.toContain('$3,120');
     expect(html).not.toContain('35%');
+  });
+});
+
+describe('Russian proposal localization', () => {
+  it('creates Russian defaults and a Russian sample without changing the English sample or the v1 backup schema', () => {
+    const blank = createBlankProposal('ru');
+    expect(blank.title).toBe('Предложение без названия');
+    expect(blank.items[0].name).toBe('Работы по проекту');
+    expect(blank.notes).toContain('Дополнительные работы оцениваются отдельно');
+    const sample = createProposal({ sample: true, language: 'ru' });
+    expect(sample.title).toBe('Новый сайт для Juniper');
+    expect(sample.items[1].name).toBe('Дизайн сайта');
+    expect(calculateProposal(sample)).toEqual(calculateProposal(createProposal({ sample: true })));
+    expect(parseBackup(serializeBackup([sample, blank]))).toEqual([sample, blank]);
+    expect(createProposal({ sample: true }).title).toBe('A fresh home for Juniper');
+  });
+
+  it('renders Russian document labels, regional dates, money and taxes without translating user content', () => {
+    const proposal = createProposal({ sample: true, language: 'ru' });
+    proposal.title = 'Client-approved original title';
+    proposal.createdAt = '2026-10-22T12:00:00.000Z';
+    proposal.taxPercent = 7.5;
+    const html = generateProposalHtml(proposal, { watermark: true, language: 'ru' });
+    expect(html).toContain('<html lang="ru">');
+    expect(html).toContain('<h1 class="title">Client-approved original title</h1>');
+    expect(html).toContain('Коммерческое предложение');
+    expect(html).toContain('Что входит в объём работ');
+    expect(html).toContain('Что не входит в объём работ');
+    expect(html).toContain('22 октября 2026');
+    expect(html).toContain('Налог (7,5');
+    expect(html).toContain(formatMoney(4800, 'USD', 'ru'));
+    expect(html).toContain('Подготовлено в Scopebook');
+    expect(html).not.toContain('Your investment');
+    expect(html).not.toContain('Feedback & revisions');
+    expect(html).not.toContain(formatMoney(3120, 'USD', 'ru'));
+    expect(html).not.toContain('35%');
+  });
+
+  it.each([[1, 'Включён 1 раунд', '1 день'], [2, 'Включено 2 раунда', '2 дня'], [5, 'Включено 5 раундов', '5 дней'], [21, 'Включён 21 раунд', '21 день']] as const)('uses Russian plural forms for %s rounds and validity days', (count, rounds, days) => {
+    const proposal = createBlankProposal('ru');
+    proposal.revisionRounds = count;
+    proposal.validDays = count;
+    const html = generateProposalHtml(proposal, { watermark: false, language: 'ru' });
+    expect(html).toContain(rounds);
+    expect(html).toContain(`действует ${days}`);
+  });
+
+  it('keeps markup inert in Russian exports and localizes known dynamic validation errors', () => {
+    const proposal = createBlankProposal('ru');
+    proposal.title = '<img src=x onerror="alert(1)">';
+    proposal.included = ['</li><script>alert(2)</script>'];
+    const html = generateProposalHtml(proposal, { watermark: false, language: 'ru' });
+    expect(html).not.toContain('<img');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(domainErrorRu('Line hours must be a number between 0 and 100000.')).toBe('Часы по позиции: введите число от 0 до 100000.');
+    expect(domainErrorRu('Included scope 2 must be text of at most 20000 characters.')).toBe('Включённые работы, пункт 2: введите текст длиной не более 20000 символов.');
+    expect(domainErrorRu('This file is not valid JSON. Choose a Scopebook backup.')).toContain('некорректный JSON');
+    expect(domainErrorRu('An unknown external error')).toBeUndefined();
   });
 });

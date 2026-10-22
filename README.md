@@ -1,6 +1,10 @@
 # Scopebook
 
+[Инструкция на русском](README.ru.md)
+
 A private proposal workspace for independent designers and developers. Estimate a project, check whether its fee covers your time, define the scope, and export a client-ready proposal. Price extra requests with a separate change order.
+
+The full interface, proposal templates, client exports, and sample downloads support English and Russian. Language follows the browser's first supported language; the RU/EN switch saves an explicit choice. Switching languages preserves existing proposals and unsaved client text. Numbers and dates follow the selected locale; currency codes and amounts are never converted automatically.
 
 **Business model:** one saved proposal free; $29 once for Pro (up to 500 saved proposals, clean exports, and workspace backups). This is a prelaunch pricing experiment. No sales or customer demand have been demonstrated. The [research](docs/MARKET_RESEARCH.md) explains the decision and its limits; the [launch experiment](docs/LAUNCH.md) gives a concrete path to the first paying users.
 
@@ -74,6 +78,7 @@ APP_URL=https://your-real-domain.example NODE_ENV=production npm start
 npm run build        # TypeScript, client bundle, compiled server
 npm test             # Calculations, import/export, payment verification and recovery
 npm run test:e2e     # Desktop + mobile Chromium user workflows
+npm run samples      # Regenerate English/Russian sample HTML and PDFs (requires Chromium)
 ```
 
 Browser tests use system Chromium at `/usr/bin/chromium` when present. Otherwise install Playwright's browser with `npx playwright install chromium`; `CHROMIUM_PATH` can select another executable. The test runner starts the built server automatically. Build first. Pro browser tests mock only the entitlement response to exercise exports/backups; backend tests independently verify payment authorization. No real payments, deployment, outreach, or purchases were performed during development.

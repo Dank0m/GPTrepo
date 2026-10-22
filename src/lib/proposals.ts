@@ -1,3 +1,5 @@
+import { localeFor, translate, type Language } from './locale';
+
 /** Proposal data stays in the browser. Backups contain client information, never billing credentials. */
 export type Currency = 'USD' | 'EUR' | 'GBP';
 
@@ -106,8 +108,8 @@ export function calculateChangeOrder(hours: number, rate: number, bufferPercent 
   return { hours: safeHours, bufferedHours, fee: cents(bufferedHours * nonnegative(rate)) };
 }
 
-export function formatMoney(amount: number, currency: Currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
+export function formatMoney(amount: number, currency: Currency = 'USD', language: Language = 'en'): string {
+  return new Intl.NumberFormat(localeFor(language), {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
@@ -115,46 +117,49 @@ export function formatMoney(amount: number, currency: Currency = 'USD'): string 
   }).format(Number.isFinite(amount) ? amount : 0);
 }
 
-export function currencyFormatter(currency: Currency = 'USD'): Intl.NumberFormat {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 2 });
+export function currencyFormatter(currency: Currency = 'USD', language: Language = 'en'): Intl.NumberFormat {
+  return new Intl.NumberFormat(localeFor(language), { style: 'currency', currency, maximumFractionDigits: 2 });
 }
 
-export function createBlankProposal(): Proposal {
+export function createBlankProposal(language: Language = 'en'): Proposal {
+  const t = (key: string) => translate(language, key);
   const now = new Date().toISOString();
   return {
-    id: id(), title: 'Untitled proposal', clientName: '', clientEmail: '', clientCompany: '',
-    studioName: 'Your studio', studioEmail: '', description: '', currency: 'USD',
+    id: id(), title: t('Untitled proposal'), clientName: '', clientEmail: '', clientCompany: '',
+    studioName: t('Your studio'), studioEmail: '', description: '', currency: 'USD',
     hourlyRate: 65, depositPercent: 50, taxPercent: 0, bufferPercent: 20,
-    items: [{ id: id(), name: 'Project work', description: '', hours: 10, rate: 120 }],
-    included: ['One kickoff call', 'Final files and handoff'],
-    excluded: ['Work outside the agreed scope', 'Third-party subscriptions and licenses'],
-    revisionRounds: 2, timeline: '2–3 weeks from deposit and receipt of content', validDays: 14,
-    notes: 'Work begins after scope approval and receipt of the deposit. Additional work is quoted separately.',
+    items: [{ id: id(), name: t('Project work'), description: '', hours: 10, rate: 120 }],
+    included: [t('One kickoff call'), t('Final files and handoff')],
+    excluded: [t('Work outside the agreed scope'), t('Third-party subscriptions and licenses')],
+    revisionRounds: 2, timeline: t('2–3 weeks from deposit and receipt of content'), validDays: 14,
+    notes: t('Work begins after scope approval and receipt of the deposit. Additional work is quoted separately.'),
     createdAt: now, updatedAt: now,
   };
 }
 
-export function createProposal(options: { sample?: boolean } = {}): Proposal {
-  const proposal = createBlankProposal();
+export function createProposal(options: { sample?: boolean; language?: Language } = {}): Proposal {
+  const language = options.language || 'en';
+  const t = (key: string) => translate(language, key);
+  const proposal = createBlankProposal(language);
   if (!options.sample) return proposal;
   return {
     ...proposal,
-    title: 'A fresh home for Juniper',
-    clientName: 'Alex Morgan',
+    title: t('A fresh home for Juniper'),
+    clientName: t('Alex Morgan'),
     clientEmail: 'alex@example.com',
     clientCompany: 'Juniper Coffee',
     studioName: 'Sunday Studio',
     studioEmail: 'hello@example.com',
-    description: 'A thoughtful five-page website that brings Juniper’s story, seasonal menu, and neighborhood spirit online. Built to turn curious visitors into your next regulars.',
+    description: t('A thoughtful five-page website that brings Juniper’s story, seasonal menu, and neighborhood spirit online. Built to turn curious visitors into your next regulars.'),
     items: [
-      { id: id(), name: 'Discovery & creative direction', description: 'Kickoff workshop, content audit, and visual direction.', hours: 8, rate: 120 },
-      { id: id(), name: 'Website design', description: 'Responsive designs for five pages, with two rounds of consolidated revisions.', hours: 18, rate: 120 },
-      { id: id(), name: 'Build & handoff', description: 'Website implementation, responsive QA, and a recorded handoff.', hours: 14, rate: 120 },
+      { id: id(), name: t('Discovery & creative direction'), description: t('Kickoff workshop, content audit, and visual direction.'), hours: 8, rate: 120 },
+      { id: id(), name: t('Website design'), description: t('Responsive designs for five pages, with two rounds of consolidated revisions.'), hours: 18, rate: 120 },
+      { id: id(), name: t('Build & handoff'), description: t('Website implementation, responsive QA, and a recorded handoff.'), hours: 14, rate: 120 },
     ],
-    included: ['Five responsive website pages', 'Two rounds of consolidated revisions', 'Contact form and basic search metadata', 'Recorded handoff and 14 days of bug fixes'],
-    excluded: ['Copywriting, photography, and brand identity', 'E-commerce and custom integrations', 'Hosting, domain, and ongoing maintenance', 'Additional pages or revisions'],
-    timeline: '4 weeks from deposit and receipt of all content',
-    notes: 'A 50% deposit reserves your project. The remaining balance is due before launch. A revision round is one consolidated list of feedback. New requests are estimated and approved before work begins.',
+    included: [t('Five responsive website pages'), t('Two rounds of consolidated revisions'), t('Contact form and basic search metadata'), t('Recorded handoff and 14 days of bug fixes')],
+    excluded: [t('Copywriting, photography, and brand identity'), t('E-commerce and custom integrations'), t('Hosting, domain, and ongoing maintenance'), t('Additional pages or revisions')],
+    timeline: t('4 weeks from deposit and receipt of all content'),
+    notes: t('A 50% deposit reserves your project. The remaining balance is due before launch. A revision round is one consolidated list of feedback. New requests are estimated and approved before work begins.'),
   };
 }
 
@@ -268,29 +273,37 @@ export function escapeHtml(value: string): string {
 }
 
 /** Standalone printable document. Internal costs and margin are intentionally excluded. */
-export function generateProposalHtml(proposal: Proposal, options: { watermark: boolean }): string {
+export function generateProposalHtml(proposal: Proposal, options: { watermark: boolean; language?: Language }): string {
   const p = validateProposal(proposal);
   const totals = calculateProposal(p);
   const esc = escapeHtml;
-  const money = (value: number) => esc(formatMoney(value, p.currency));
+  const language = options.language || 'en';
+  const t = (key: string, vars?: Record<string, string | number>) => translate(language, key, vars);
+  const label = (key: string, vars?: Record<string, string | number>) => esc(t(key, vars));
+  const money = (value: number) => esc(formatMoney(value, p.currency, language));
+  const percentText = (value: number) => new Intl.NumberFormat(localeFor(language), { style: 'percent', maximumFractionDigits: 2 }).format(value / 100);
+  const russianPlural = (count: number, forms: [string, string, string]) => { const plural = new Intl.PluralRules('ru-RU').select(count); return forms[plural === 'one' ? 0 : plural === 'few' ? 1 : 2]; };
+  const revisions = language === 'ru'
+    ? `${new Intl.PluralRules('ru-RU').select(p.revisionRounds) === 'one' ? 'Включён' : 'Включено'} ${p.revisionRounds} ${russianPlural(p.revisionRounds, ['раунд', 'раунда', 'раундов'])} правок по сводному списку замечаний. Дополнительные раунды и запросы за пределами согласованного объёма требуют отдельной оценки и письменного согласования до начала работ.`
+    : `${p.revisionRounds} round${p.revisionRounds === 1 ? '' : 's'} of consolidated revisions included. Additional rounds and requests outside this scope require a separate estimate and written approval before work begins.`;
   const list = (entries: string[]) => entries.filter(entry => entry.trim()).map(entry => `<li>${esc(entry)}</li>`).join('');
-  const dateCreated = new Date(p.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+  const dateCreated = new Date(p.createdAt).toLocaleDateString(localeFor(language), { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(p.title)} — Proposal</title>
+<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(p.title)} — ${label('Proposal')}</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eeefea;color:#252c28;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65}.sheet{max-width:850px;margin:40px auto;padding:64px 66px;background:#fff;box-shadow:0 6px 35px #2026240d}.masthead{display:flex;align-items:start;justify-content:space-between;border-bottom:1px solid #dfe3dc;padding-bottom:28px;gap:24px}.studio{font-size:20px;font-weight:700;letter-spacing:-.6px}.muted{color:#6b746d}.eyebrow{text-transform:uppercase;font-size:10px;font-weight:700;letter-spacing:2px;color:#55745f}.title{font-size:40px;line-height:1.15;letter-spacing:-1.6px;font-weight:600;margin:28px 0 18px}.intro{font-size:16px;line-height:1.75;white-space:pre-line;max-width:650px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin:28px 0 36px}.meta p{margin:4px 0}h2{font-size:19px;letter-spacing:-.5px;margin:34px 0 14px}table{width:100%;border-collapse:collapse}th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#69786d;text-align:left;padding:12px 0;border-bottom:1px solid #dbe1da}td{vertical-align:top;padding:16px 0;border-bottom:1px solid #edf0eb}th:last-child,td:last-child{text-align:right;white-space:nowrap;padding-left:20px}.item-name{font-weight:700}.item-desc{font-size:12px;color:#69736c;white-space:pre-line}.totals{margin:20px 0 28px auto;max-width:320px}.sum{display:flex;justify-content:space-between;gap:20px;margin:8px 0}.sum.total{border-top:1px solid #dbe1da;padding-top:13px;font-size:22px;font-weight:700}.deposit{padding:18px 22px;background:#f1f5ed;border-radius:8px;display:flex;justify-content:space-between;gap:20px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:34px}.columns h2{margin-top:24px}ul{padding-left:18px;margin:0}li{margin:7px 0}section,p,li{overflow-wrap:anywhere}.terms{white-space:pre-line}.footer{border-top:1px solid #dfe3dc;margin-top:40px;padding-top:18px;color:#788278;font-size:11px}.watermark{color:#527244;font-size:11px;margin-top:12px}tr,.deposit,.meta{break-inside:avoid}h2{break-after:avoid}
 @media(max-width:650px){.sheet{margin:0;padding:30px 24px}.title{font-size:32px}.columns,.meta{grid-template-columns:1fr;gap:8px}.masthead{flex-direction:column}.deposit{flex-direction:column;gap:3px}}
 @media print{@page{size:A4;margin:16mm}body{background:#fff}.sheet{max-width:none;margin:0;padding:0;box-shadow:none}.columns,.meta{grid-template-columns:1fr 1fr}.masthead{flex-direction:row}.title{font-size:34px}.deposit{print-color-adjust:exact;-webkit-print-color-adjust:exact}.footer{margin-top:28px}a{color:inherit}}
 </style></head><body><main class="sheet">
-<header class="masthead"><div><div class="studio">${esc(p.studioName || 'Your studio')}</div><div class="muted">${esc(p.studioEmail)}</div></div><div><div class="eyebrow">Project proposal</div><div class="muted">${esc(dateCreated)}</div><div class="muted">Valid for ${p.validDays} days from issue</div></div></header>
-<h1 class="title">${esc(p.title || 'Project proposal')}</h1><p class="intro">${esc(p.description)}</p>
-<div class="meta"><div><div class="eyebrow">Prepared for</div><p><strong>${esc(p.clientCompany || p.clientName || 'Client')}</strong><br>${p.clientCompany ? `${esc(p.clientName)}<br>` : ''}${esc(p.clientEmail)}</p></div><div><div class="eyebrow">Timeline</div><p>${esc(p.timeline || 'To be agreed before work begins')}</p></div></div>
-<h2>Your investment</h2><table><thead><tr><th>Deliverable</th><th>Fee (${esc(p.currency)})</th></tr></thead><tbody>${p.items.map(item => `<tr><td><div class="item-name">${esc(item.name || 'Project work')}</div><div class="item-desc">${esc(item.description)}</div></td><td>${money(cents(item.hours * item.rate))}</td></tr>`).join('')}</tbody></table>
-<div class="totals"><div class="sum"><span>Project fee</span><span>${money(totals.fee)}</span></div>${p.taxPercent > 0 ? `<div class="sum"><span>Tax (${p.taxPercent}%)</span><span>${money(totals.tax)}</span></div>` : ''}<div class="sum total"><span>Total</span><span>${money(totals.total)}</span></div></div>
-<div class="deposit"><span>${p.depositPercent}% deposit to reserve your project</span><strong>${money(totals.deposit)}</strong></div><div class="sum muted"><span>Balance due before handoff</span><span>${money(totals.balance)}</span></div>
-<div class="columns"><section><h2>Included in this scope</h2><ul>${list(p.included) || '<li>To be agreed before work begins.</li>'}</ul></section><section><h2>Outside this scope</h2><ul>${list(p.excluded) || '<li>Additional work is estimated separately.</li>'}</ul></section></div>
-<h2>Feedback & revisions</h2><p>${p.revisionRounds} round${p.revisionRounds === 1 ? '' : 's'} of consolidated revisions included. Additional rounds and requests outside this scope require a separate estimate and written approval before work begins.</p>
-${p.notes.trim() ? `<h2>Working together</h2><p class="terms">${esc(p.notes)}</p>` : ''}
-<footer class="footer">This document is a project proposal, not a signed contract or tax invoice. Confirm scope, payment terms, ownership, and acceptance in your agreement before starting work.${options.watermark ? '<div class="watermark">Prepared with Scopebook · scopebook</div>' : ''}</footer>
+<header class="masthead"><div><div class="studio">${esc(p.studioName || t('Your studio'))}</div><div class="muted">${esc(p.studioEmail)}</div></div><div><div class="eyebrow">${label('Project proposal')}</div><div class="muted">${esc(dateCreated)}</div><div class="muted">${label('Valid for {count} {days} from issue', { count: p.validDays, days: language === 'ru' ? russianPlural(p.validDays, ['день', 'дня', 'дней']) : 'days' })}</div></div></header>
+<h1 class="title">${esc(p.title || t('Project proposal'))}</h1><p class="intro">${esc(p.description)}</p>
+<div class="meta"><div><div class="eyebrow">${label('Prepared for')}</div><p><strong>${esc(p.clientCompany || p.clientName || t('Client'))}</strong><br>${p.clientCompany ? `${esc(p.clientName)}<br>` : ''}${esc(p.clientEmail)}</p></div><div><div class="eyebrow">${label('Timeline')}</div><p>${esc(p.timeline || t('To be agreed before work begins'))}</p></div></div>
+<h2>${label('Your investment')}</h2><table><thead><tr><th>${label('Deliverable')}</th><th>${label('Fee ({currency})', {currency: p.currency})}</th></tr></thead><tbody>${p.items.map(item => `<tr><td><div class="item-name">${esc(item.name || t('Project work'))}</div><div class="item-desc">${esc(item.description)}</div></td><td>${money(cents(item.hours * item.rate))}</td></tr>`).join('')}</tbody></table>
+<div class="totals"><div class="sum"><span>${label('Project fee')}</span><span>${money(totals.fee)}</span></div>${p.taxPercent > 0 ? `<div class="sum"><span>${label('Tax ({percent})', {percent: percentText(p.taxPercent)})}</span><span>${money(totals.tax)}</span></div>` : ''}<div class="sum total"><span>${label('Total')}</span><span>${money(totals.total)}</span></div></div>
+<div class="deposit"><span>${label('{percent} deposit to reserve your project', {percent: percentText(p.depositPercent)})}</span><strong>${money(totals.deposit)}</strong></div><div class="sum muted"><span>${label('Balance due before handoff')}</span><span>${money(totals.balance)}</span></div>
+<div class="columns"><section><h2>${label('Included in this scope')}</h2><ul>${list(p.included) || `<li>${label('To be agreed before work begins.')}</li>`}</ul></section><section><h2>${label('Outside this scope')}</h2><ul>${list(p.excluded) || `<li>${label('Additional work is estimated separately.')}</li>`}</ul></section></div>
+<h2>${label('Feedback & revisions')}</h2><p>${esc(revisions)}</p>
+${p.notes.trim() ? `<h2>${label('Working together')}</h2><p class="terms">${esc(p.notes)}</p>` : ''}
+<footer class="footer">${label('This document is a project proposal, not a signed contract or tax invoice. Confirm scope, payment terms, ownership, and acceptance in your agreement before starting work.')}${options.watermark ? `<div class="watermark">${label('Prepared with Scopebook · scopebook')}</div>` : ''}</footer>
 </main></body></html>`;
 }
