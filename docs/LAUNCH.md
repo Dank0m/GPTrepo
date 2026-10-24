@@ -1,5 +1,7 @@
 # Scopebook launch experiment
 
+[Русская версия](LAUNCH.ru.md)
+
 ## Current status
 
 Scopebook is a working prelaunch product. There are no verified customers, sales, testimonials, or income results. The offer is a free version with one saved proposal and **Pro for $29 once**, with up to 500 proposals, clean PDF export, and backups. This is a testable pricing hypothesis, not proven demand. See [the research](MARKET_RESEARCH.md) for sources and limitations.

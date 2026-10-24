@@ -1,3 +1,5 @@
+[English](MARKET_RESEARCH.md) · [Русский](MARKET_RESEARCH.ru.md)
+
 # Scopebook: desk research and decision
 
 Research date: 22 October 2026. No interviews, sales, demand tests, or willingness-to-pay tests have been performed.
